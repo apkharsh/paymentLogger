@@ -1,22 +1,33 @@
 package com.apkharsh.paymentLogger.auth.controller;
 
-import com.apkharsh.paymentLogger.auth.entity.User;
-import com.apkharsh.paymentLogger.auth.service.AuthService;
+import com.apkharsh.paymentLogger.auth.dto.LoginResponse;
+import com.apkharsh.paymentLogger.auth.dto.LoginRequest;
+import com.apkharsh.paymentLogger.auth.dto.SignupRequest;
+import com.apkharsh.paymentLogger.auth.dto.SignupResponse;
+import com.apkharsh.paymentLogger.auth.service.impl.AuthServiceImpl;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-@RestController
+@RestController(value = "/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final AuthService authService;
+    private final AuthServiceImpl authService;
 
-    public ResponseEntity<String> signUp(User request) {
-        return new ResponseEntity<>(authService.Signup(request), HttpStatus.OK);
+    @SneakyThrows
+    @PostMapping(value = "/signup")
+    public ResponseEntity<SignupResponse> signUp(@RequestBody  SignupRequest request) {
+        return new ResponseEntity<>(authService.signUp(request), HttpStatus.OK);
     }
 
+    @SneakyThrows
+    @PostMapping(value = "/login")
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
+        return new ResponseEntity<>(authService.login(request), HttpStatus.OK);
+    }
 }
-
-// Request Types -> GET, POST, PUT, PATCH, DELETE
