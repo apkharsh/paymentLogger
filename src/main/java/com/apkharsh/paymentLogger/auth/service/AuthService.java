@@ -1,20 +1,13 @@
 package com.apkharsh.paymentLogger.auth.service;
 
-import com.apkharsh.paymentLogger.auth.entity.User;
-import com.apkharsh.paymentLogger.auth.validator.AuthValidator;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
+import com.apkharsh.paymentLogger.auth.dto.LoginRequest;
+import com.apkharsh.paymentLogger.auth.dto.LoginResponse;
+import com.apkharsh.paymentLogger.auth.dto.SignupRequest;
+import com.apkharsh.paymentLogger.auth.dto.SignupResponse;
 
-@Service
-@RequiredArgsConstructor
-public class AuthService {
+public interface AuthService {
 
-    private final AuthValidator authValidator;
+    SignupResponse signUp(SignupRequest request) throws Exception;
 
-    public String Signup(User request) {
-        authValidator.validateSignupRequest(request);
-
-        // validate Request
-        return "";
-    }
+    LoginResponse login(LoginRequest request) throws Exception;
 }
