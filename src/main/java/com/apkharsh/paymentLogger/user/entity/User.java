@@ -1,6 +1,6 @@
 package com.apkharsh.paymentLogger.user.entity;
 
-import com.apkharsh.paymentLogger.auth.ROLE;
+import com.apkharsh.paymentLogger.auth.enums.ROLE;
 import lombok.Builder;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
