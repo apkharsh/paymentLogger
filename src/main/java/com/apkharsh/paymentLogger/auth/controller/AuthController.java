@@ -1,19 +1,19 @@
 package com.apkharsh.paymentLogger.auth.controller;
 
 import com.apkharsh.paymentLogger.auth.dto.LoginRequest;
-import com.apkharsh.paymentLogger.auth.dto.LoginResponse;
+import com.apkharsh.paymentLogger.auth.dto.TokenResponse;
 import com.apkharsh.paymentLogger.auth.dto.SignupRequest;
 import com.apkharsh.paymentLogger.auth.dto.SignupResponse;
 import com.apkharsh.paymentLogger.auth.service.AuthService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-@RestController(value = "/auth")
+@RestController
+@RequestMapping(value = "/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -27,7 +27,20 @@ public class AuthController {
 
     @SneakyThrows
     @PostMapping(value = "/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
-        return new ResponseEntity<>(authService.login(request), HttpStatus.OK);
+    public ResponseEntity<TokenResponse> login(@RequestBody LoginRequest request, HttpServletResponse response) {
+        return new ResponseEntity<>(authService.login(request, response), HttpStatus.OK);
     }
+
+    @SneakyThrows
+    @PostMapping("/refresh")
+    public ResponseEntity<TokenResponse> refresh(@CookieValue("refresh") String refreshToken) {
+        return new ResponseEntity<>(authService.refreshAccessToken(refreshToken), HttpStatus.OK);
+    }
+
+    @SneakyThrows
+    @PostMapping
+    public ResponseEntity<String> logout(HttpServletResponse response) {
+        return new ResponseEntity<>(authService.logout(response), HttpStatus.OK);
+    }
+
 }
