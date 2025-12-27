@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: payment-logger-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    region: singapore  # Choose closest to you: oregon, frankfurt, singapore
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: dev
+      - key: PORT
+        value: 8080
+      - key: MONGODB_URI
+        sync: false  # You'll set this manually in Render dashboard
+      - key: MONGODB_DATABASE
+        value: paymentLogger
+      - key: JWT_SECRET
+        sync: false  # You'll set this manually
+      - key: JWT_ACCESS_EXPIRATION_MS
+        value: 900000  # 15 minutes in milliseconds
+      - key: JWT_REFRESH_EXPIRATION_DAYS
+        value: 7
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false  # You'll set this with your frontend URL
+    healthCheckPath: /actuator/health
