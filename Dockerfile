@@ -1,6 +1,9 @@
 # Use Eclipse Temurin JDK 17 (OpenJDK)
 FROM eclipse-temurin:17-jdk-alpine AS build
 
+# Install bash for better script compatibility
+RUN apk add --no-cache bash
+
 # Set working directory
 WORKDIR /app
 
@@ -8,8 +11,11 @@ WORKDIR /app
 COPY .mvn/ .mvn
 COPY mvnw pom.xml ./
 
+# Make mvnw executable
+RUN chmod +x ./mvnw
+
 # Download dependencies (cached layer)
-RUN ./mvnw dependency:go-offline
+RUN ./mvnw dependency:go-offline || true
 
 # Copy source code
 COPY src ./src
