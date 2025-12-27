@@ -12,7 +12,7 @@ public interface AuthService {
 
     TokenResponse login(LoginRequest request, HttpServletResponse response) throws Exception;
 
-    TokenResponse refreshAccessToken(String refreshToken) throws Exception;
+    TokenResponse refreshAccessToken(String refreshToken, HttpServletResponse response) throws Exception;
 
     String logout(HttpServletResponse response) throws Exception;
 }

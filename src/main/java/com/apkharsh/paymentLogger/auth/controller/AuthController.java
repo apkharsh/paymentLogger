@@ -21,7 +21,7 @@ public class AuthController {
 
     @SneakyThrows
     @PostMapping(value = "/signup")
-    public ResponseEntity<SignupResponse> signUp(@RequestBody  SignupRequest request) {
+    public ResponseEntity<SignupResponse> signUp(@RequestBody SignupRequest request) {
         return new ResponseEntity<>(authService.signUp(request), HttpStatus.OK);
     }
 
@@ -33,12 +33,13 @@ public class AuthController {
 
     @SneakyThrows
     @PostMapping("/refresh")
-    public ResponseEntity<TokenResponse> refresh(@CookieValue("refresh") String refreshToken) {
-        return new ResponseEntity<>(authService.refreshAccessToken(refreshToken), HttpStatus.OK);
+    public ResponseEntity<TokenResponse> refresh(@CookieValue(name = "refreshToken", required = false) String refreshToken,
+                                                 HttpServletResponse response) {
+        return new ResponseEntity<>(authService.refreshAccessToken(refreshToken, response), HttpStatus.OK);
     }
 
     @SneakyThrows
-    @PostMapping
+    @PostMapping("/logout")
     public ResponseEntity<String> logout(HttpServletResponse response) {
         return new ResponseEntity<>(authService.logout(response), HttpStatus.OK);
     }

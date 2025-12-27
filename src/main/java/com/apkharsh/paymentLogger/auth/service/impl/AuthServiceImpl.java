@@ -47,53 +47,115 @@ public class AuthServiceImpl implements AuthService {
 
         // 1️⃣ Find user
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new NotFoundException("Account does not exists with this email: " + request.getEmail()));
+                .orElseThrow(() -> new NotFoundException("Account does not exist with this email: " + request.getEmail()));
 
         // 2️⃣ Validate password
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new ValidationException("Invalid password");
         }
 
-        // 3️⃣ Build claims if you need them
+        // 3️⃣ Build claims
         Map<String, Object> claims = buildJWTClaims(user);
 
         // 4️⃣ Generate tokens
         String accessToken = jwtService.generateAccessToken(user.getId(), claims);
-        String refreshToken = jwtService.generateRefreshToken(user.getId()); // ⬅️ new method
+        String refreshToken = jwtService.generateRefreshToken(user.getId());
 
-        // 5️⃣ Set secure HttpOnly cookie for refresh token
-        ResponseCookie cookie = ResponseCookie.from("refresh", refreshToken)
-                .httpOnly(true)              // ⛔ JS cannot read it
-                .secure(true)                // ⛔ HTTPS only
-                .sameSite("None")          // ⛔ cross-site allowed for demo purposes
-                .path("/auth/refresh")       // ⛔ only sent to refresh endpoint
-                .maxAge(Duration.ofDays(14)) // refresh expiry
+        // ⭐ Debug logs
+        System.out.println("Generated Access Token: " + accessToken.substring(0, 20) + "...");
+        System.out.println("Generated Refresh Token: " + refreshToken.substring(0, 20) + "...");
+
+        // 5️⃣ Set access token cookie
+        ResponseCookie accessCookie = ResponseCookie.from("accessToken", accessToken)
+                .httpOnly(true)
+                .secure(false)  // ⚠️ MUST be false for http://localhost
+                .sameSite("Lax")  // ⚠️ Changed from None to Lax (works for same-site)
+                .path("/")
+                .maxAge(Duration.ofMinutes(15))
                 .build();
 
-        response.addHeader("Set-Cookie", cookie.toString());
+        response.addHeader("Set-Cookie", accessCookie.toString());
 
-        // 6️⃣ Return access token only
-        return new TokenResponse(accessToken);
+        // 6️⃣ Set refresh token cookie
+        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", refreshToken)
+                .httpOnly(true)
+                .secure(false)  // ⚠️ MUST be false for http://localhost
+                .sameSite("Lax")  // ⚠️ Changed from Strict to Lax
+                .path("/")  // ⚠️ Changed from /auth/refresh to / (sent with all requests)
+                .maxAge(Duration.ofDays(7))
+                .build();
+
+        response.addHeader("Set-Cookie", refreshCookie.toString());
+
+        // ⭐ Debug: Print what cookies were set
+        System.out.println("Set-Cookie: " + accessCookie.toString());
+        System.out.println("Set-Cookie: " + refreshCookie.toString());
+
+        // 7️⃣ Return user info (NOT tokens in response body for better security)
+        return TokenResponse.builder()
+                .user(user)
+                .build();
     }
 
     @Override
-    public TokenResponse refreshAccessToken(String refreshToken) throws Exception {
-        String userId = jwtService.validateRefreshAndGetSubject(refreshToken);
-        String newAccessToken = jwtService.generateAccessToken(userId, Map.of());
-        return new TokenResponse(newAccessToken);
+    public TokenResponse refreshAccessToken(String refreshToken, HttpServletResponse response) {
+        // 1️⃣ Validate refresh token
+        if (refreshToken == null) {
+            throw new ValidationException("Refresh token is missing");
+        }
+
+        if (!jwtService.isTokenValid(refreshToken)) {
+            throw new ValidationException("Invalid or expired refresh token");
+        }
+
+        // 2️⃣ Extract user ID and get user
+        String userId = jwtService.extractSubject(refreshToken);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        // 3️⃣ Generate new access token
+        Map<String, Object> claims = buildJWTClaims(user);
+        String newAccessToken = jwtService.generateAccessToken(userId, claims);
+
+        // 4️⃣ Optional: Generate new refresh token (Token Rotation - RECOMMENDED)
+        // String newRefreshToken = jwtService.generateRefreshToken(userId);
+
+        // 5️⃣ Set new access token cookie
+        ResponseCookie accessCookie = ResponseCookie.from("accessToken", newAccessToken)
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("Strict")
+                .path("/")
+                .maxAge(Duration.ofMinutes(15))
+                .build();
+
+        response.addHeader("Set-Cookie", accessCookie.toString());
+
+        return TokenResponse.builder().user(user)
+                .build();
     }
 
     @Override
     public String logout(HttpServletResponse response) {
-        ResponseCookie deleteCookie = ResponseCookie.from("refresh", "")
+        // Clear both cookies by setting maxAge to 0
+        ResponseCookie accessCookie = ResponseCookie.from("accessToken", "")
                 .httpOnly(true)
-                .secure(true)
-                .sameSite("None")
-                .path("/auth/refresh")
+                .secure(false)  // ⚠️ false for localhost
+                .sameSite("Lax")
+                .path("/")
                 .maxAge(0)
                 .build();
 
-        response.addHeader("Set-Cookie", deleteCookie.toString());
+        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .secure(false)  // ⚠️ false for localhost
+                .sameSite("Lax")
+                .path("/")
+                .maxAge(0)
+                .build();
+
+        response.addHeader("Set-Cookie", accessCookie.toString());
+        response.addHeader("Set-Cookie", refreshCookie.toString());
         return "Logged out successfully";
     }
 
