@@ -66,11 +66,6 @@ public class JwtService {
         }
     }
 
-    // 🔐 🔐 THIS is the refresh-token validation
-    public String validateRefreshAndGetSubject(String refreshToken) {
-        return extractSubject(refreshToken); // same validation applies
-    }
-
     private Claims getClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
