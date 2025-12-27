@@ -12,9 +12,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@RestController(value = "/beneficiary")
+@RestController
+@RequestMapping(value = "/beneficiary")
 @RequiredArgsConstructor
 public class BeneficiaryController {
+
     private final BeneficiaryService userService;
 
     // add payments -> for that need add payee controller
@@ -24,7 +26,7 @@ public class BeneficiaryController {
     }
 
     @GetMapping(value = "/payer")
-    public ResponseEntity<List<Beneficiary>> getBeneficiariesByPayerEmail(@RequestParam String email) {
-        return new ResponseEntity<>(userService.getBeneficiaries(email), HttpStatus.OK);
+    public ResponseEntity<List<Beneficiary>> getBeneficiariesByPayerEmail(@RequestParam String payerId) {
+        return new ResponseEntity<>(userService.getBeneficiaries(payerId), HttpStatus.OK);
     }
 }

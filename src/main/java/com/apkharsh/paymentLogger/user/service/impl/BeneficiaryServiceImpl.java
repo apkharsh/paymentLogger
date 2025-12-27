@@ -57,7 +57,7 @@ public class BeneficiaryServiceImpl implements BeneficiaryService {
 
     @Override
     public List<Beneficiary> getBeneficiaries(String payerId) {
-        return beneficiaryRepository.findByPayerId(payerId).orElseGet(List::of);
+        return beneficiaryRepository.getBeneficiariesByPayerId(payerId).orElse(List.of());
     }
 
     private BeneficiaryEnrollResponse buildPayerEnrollSuccessResponse(BeneficiaryEnrollRequest request) {

@@ -7,9 +7,9 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+
 @Repository
 public interface BeneficiaryRepository extends MongoRepository<Beneficiary, String> {
-    Optional<List<Beneficiary>> findByPayerId(String payeeId);
-
+    Optional<List<Beneficiary>> getBeneficiariesByPayerId(String Id);
     boolean existsByPayerIdAndPayeeId(String payerId, String payeeId);
 }

@@ -10,5 +10,5 @@ public interface BeneficiaryService {
 
     BeneficiaryEnrollResponse beneficiaryEnroll(BeneficiaryEnrollRequest userEnrollRequest);
 
-    List<Beneficiary> getBeneficiaries(String email);
+    List<Beneficiary> getBeneficiaries(String payerId);
 }
