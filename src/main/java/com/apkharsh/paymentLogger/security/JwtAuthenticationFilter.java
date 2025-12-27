@@ -4,6 +4,7 @@ import com.apkharsh.paymentLogger.user.entity.User;
 import com.apkharsh.paymentLogger.user.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -31,22 +32,42 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        String authHeader = request.getHeader("Authorization");
+        String token = null;
 
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        // ⭐ Strategy 1: Try to get token from HttpOnly cookie (preferred for web)
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("accessToken".equals(cookie.getName())) {
+                    token = cookie.getValue();
+                    break;
+                }
+            }
+        }
+
+        // ⭐ Strategy 2: Fallback to Authorization header (for mobile apps/API clients)
+        if (token == null) {
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring(7);
+            }
+        }
+
+        // No token found, continue without authentication
+        if (token == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = authHeader.substring(7);
-
+        // Validate token
         if (!jwtService.isTokenValid(token)) {
             filterChain.doFilter(request, response);
             return;
         }
 
+        // Extract user ID from token
         String userId = jwtService.extractSubject(token);
 
+        // Load user from database
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
             filterChain.doFilter(request, response);
@@ -60,6 +81,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 List.of() // roles later
         );
 
+        // Create authentication token
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(
                         principal,
@@ -71,6 +93,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 new WebAuthenticationDetailsSource().buildDetails(request)
         );
 
+        // Set authentication in security context
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         filterChain.doFilter(request, response);
