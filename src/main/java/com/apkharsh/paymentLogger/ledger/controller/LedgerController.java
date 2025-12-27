@@ -3,12 +3,15 @@ package com.apkharsh.paymentLogger.ledger.controller;
 
 import com.apkharsh.paymentLogger.ledger.dto.LedgerRequest;
 import com.apkharsh.paymentLogger.ledger.dto.LedgerResponse;
+import com.apkharsh.paymentLogger.ledger.dto.LedgerSearchRequest;
 import com.apkharsh.paymentLogger.ledger.service.LedgerService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -24,7 +27,11 @@ public class LedgerController {
     }
 
     @GetMapping
-    public ResponseEntity<List<LedgerResponse>> getAllLedgers() {
-        return new ResponseEntity<>(ledgerService.getAllLedgers(), HttpStatus.OK);
+    public ResponseEntity<List<LedgerResponse>> getAllLedgers(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+    ) {
+        return new ResponseEntity<>(ledgerService.getAllLedgers(LedgerSearchRequest.builder().startDate(startDate).endDate(endDate).build()), HttpStatus.OK);
     }
+
 }

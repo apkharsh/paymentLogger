@@ -2,6 +2,7 @@ package com.apkharsh.paymentLogger.ledger.service.impl;
 
 import com.apkharsh.paymentLogger.ledger.dto.LedgerRequest;
 import com.apkharsh.paymentLogger.ledger.dto.LedgerResponse;
+import com.apkharsh.paymentLogger.ledger.dto.LedgerSearchRequest;
 import com.apkharsh.paymentLogger.ledger.entity.Ledger;
 import com.apkharsh.paymentLogger.ledger.repository.LedgerRepository;
 import com.apkharsh.paymentLogger.ledger.service.LedgerService;
@@ -48,8 +49,12 @@ public class LedgerServiceImpl implements LedgerService {
     }
 
     @Override
-    public List<LedgerResponse> getAllLedgers() {
-        // Add this temporary method to your repository
+    public List<LedgerResponse> getAllLedgers(LedgerSearchRequest request) {
+        if(request.getStartDate() != null && request.getEndDate() != null) {
+            Instant startInstant = request.getStartDate().atStartOfDay().toInstant(java.time.ZoneOffset.UTC);
+            Instant endInstant = request.getEndDate().atTime(23, 59, 59).toInstant(java.time.ZoneOffset.UTC);
+            return ledgerRepository.findAllLedgersWithUsersByUserIdAndDateRange(getCurrentUserId(), startInstant, endInstant);
+        }
         return ledgerRepository.findAllLedgersWithUsersByUserId(getCurrentUserId());
     }
 }
