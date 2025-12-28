@@ -13,10 +13,10 @@ public interface AuthService {
 
     String logout(HttpServletResponse response) throws Exception;
 
-    String forgetPasswordOtpSend(ForgetPasswordRequest request) throws Exception;
+    String forgetPasswordOtpSend(PasswordResetRequest request) throws Exception;
 
-    String forgetPasswordOtpVerify(ForgetPasswordRequest request) throws Exception;
+    String forgetPasswordOtpVerify(PasswordResetRequest request) throws Exception;
 
-    String updateLoginPassword(ForgetPasswordRequest request) throws Exception;
+    String updateLoginPassword(PasswordResetRequest request) throws Exception;
 
 }

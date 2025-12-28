@@ -164,7 +164,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public String forgetPasswordOtpSend(ForgetPasswordRequest request) {
+    public String forgetPasswordOtpSend(PasswordResetRequest request) {
         String email = request.getEmail();
 
         if (!userRepository.existsByEmail(email)) {
@@ -212,7 +212,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public String forgetPasswordOtpVerify(ForgetPasswordRequest request) {
+    public String forgetPasswordOtpVerify(PasswordResetRequest request) {
         String email = request.getEmail();
         String inputOtp = String.valueOf(request.getOtp());
 
@@ -254,7 +254,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public String updateLoginPassword(ForgetPasswordRequest request) {
+    public String updateLoginPassword(PasswordResetRequest request) {
         String email = request.getEmail();
         String newPassword = request.getNewPassword();
 
