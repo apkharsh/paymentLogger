@@ -1,9 +1,6 @@
 package com.apkharsh.paymentLogger.auth.controller;
 
-import com.apkharsh.paymentLogger.auth.dto.LoginRequest;
-import com.apkharsh.paymentLogger.auth.dto.TokenResponse;
-import com.apkharsh.paymentLogger.auth.dto.SignupRequest;
-import com.apkharsh.paymentLogger.auth.dto.SignupResponse;
+import com.apkharsh.paymentLogger.auth.dto.*;
 import com.apkharsh.paymentLogger.auth.service.AuthService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +39,24 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<String> logout(HttpServletResponse response) {
         return new ResponseEntity<>(authService.logout(response), HttpStatus.OK);
+    }
+
+    @SneakyThrows
+    @PostMapping("/password-reset/request")
+    public ResponseEntity<String> forgetPasswordOtpSend(@RequestBody ForgetPasswordRequest request) {
+        return new ResponseEntity<>(authService.forgetPasswordOtpSend(request), HttpStatus.OK);
+    }
+
+    @SneakyThrows
+    @PostMapping("/password-reset/verify")
+    public ResponseEntity<String> forgetPasswordOtpVerify(@RequestBody ForgetPasswordRequest request) {
+        return new ResponseEntity<>(authService.forgetPasswordOtpVerify(request), HttpStatus.OK);
+    }
+
+    @SneakyThrows
+    @GetMapping("/password-reset/confirm")
+    public ResponseEntity<String> updateLoginPassword(@RequestBody ForgetPasswordRequest request) {
+        return new ResponseEntity<>(authService.updateLoginPassword(request), HttpStatus.OK);
     }
 
 }

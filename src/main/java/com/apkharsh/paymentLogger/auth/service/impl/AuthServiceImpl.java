@@ -1,11 +1,9 @@
 package com.apkharsh.paymentLogger.auth.service.impl;
 
+import com.apkharsh.paymentLogger.auth.dto.*;
 import com.apkharsh.paymentLogger.auth.enums.ROLE;
-import com.apkharsh.paymentLogger.auth.dto.LoginRequest;
-import com.apkharsh.paymentLogger.auth.dto.TokenResponse;
-import com.apkharsh.paymentLogger.auth.dto.SignupRequest;
-import com.apkharsh.paymentLogger.auth.dto.SignupResponse;
 import com.apkharsh.paymentLogger.auth.service.AuthService;
+import com.apkharsh.paymentLogger.email.EmailService;
 import com.apkharsh.paymentLogger.exceptions.NotFoundException;
 import com.apkharsh.paymentLogger.exceptions.ValidationException;
 import com.apkharsh.paymentLogger.security.JwtService;
@@ -13,27 +11,46 @@ import com.apkharsh.paymentLogger.user.entity.User;
 import com.apkharsh.paymentLogger.user.repository.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import static com.apkharsh.paymentLogger.security.util.JwtUtil.buildJWTClaims;
 
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final StringRedisTemplate redisTemplate;
+    private final EmailService emailService;
 
-    public SignupResponse signUp(SignupRequest request) throws Exception {
+    private static final String OTP_KEY_PREFIX = "pwd_reset:otp:";
+    private static final String VERIFIED_KEY_PREFIX = "pwd_reset:verified:";
+    private static final String ATTEMPT_KEY_PREFIX = "pwd_reset:attempts:";
+    private static final String RATE_LIMIT_KEY_PREFIX = "pwd_reset:rate_limit:";
+    private static final String REQUEST_LIMIT_KEY_PREFIX = "pwd_reset:requests:";
+    private static final int MAX_REQUESTS_PER_HOUR = 3;
+    private static final int OTP_EXPIRY_MINUTES = 10;
+    private static final int VERIFIED_TOKEN_EXPIRY_MINUTES = 10;
+    private static final int MAX_ATTEMPTS = 3;
+    private static final int RATE_LIMIT_SECONDS = 30;
 
-        if(userRepository.existsByEmail(request.getEmail())){
+    @Override
+    public SignupResponse signUp(SignupRequest request) {
+
+        if (userRepository.existsByEmail(request.getEmail())) {
             throw new ValidationException("User Already exists with this Email id: " + request.getEmail());
         }
         User user = createUserFromRequest(request);
@@ -42,8 +59,8 @@ public class AuthServiceImpl implements AuthService {
         return buildSignupResponse(user);
     }
 
-    public TokenResponse login(LoginRequest request,
-                               HttpServletResponse response) throws Exception {
+    @Override
+    public TokenResponse login(LoginRequest request, HttpServletResponse response) {
 
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new NotFoundException("Account does not exist with this email: " + request.getEmail()));
@@ -144,6 +161,140 @@ public class AuthServiceImpl implements AuthService {
         response.addHeader("Set-Cookie", accessCookie.toString());
         response.addHeader("Set-Cookie", refreshCookie.toString());
         return "Logged out successfully";
+    }
+
+    @Override
+    public String forgetPasswordOtpSend(ForgetPasswordRequest request) {
+        String email = request.getEmail();
+
+        if (!userRepository.existsByEmail(email)) {
+            throw new NotFoundException("No account found with email: " + email);
+        }
+
+        // Check hourly request limit (abuse prevention)
+        String requestLimitKey = REQUEST_LIMIT_KEY_PREFIX + email;
+        int requestCount = getAttemptCount(requestLimitKey);
+
+        if (requestCount >= MAX_REQUESTS_PER_HOUR) {
+            throw new ValidationException(
+                    "Too many password reset attempts. Please try again after 1 hour."
+            );
+        }
+
+        String rateLimitKey = RATE_LIMIT_KEY_PREFIX + email;
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(rateLimitKey))) {
+            throw new ValidationException("Please wait 60 seconds before requesting another OTP");
+        }
+
+        String otp = generateSecureOTP();
+
+        String otpKey = OTP_KEY_PREFIX + email;
+        redisTemplate.opsForValue().set(otpKey, otp, OTP_EXPIRY_MINUTES, TimeUnit.MINUTES);
+
+        // Reset verification attempt counter (fresh 3 attempts per OTP)
+        String attemptKey = ATTEMPT_KEY_PREFIX + email;
+        redisTemplate.opsForValue().set(attemptKey, "0", OTP_EXPIRY_MINUTES, TimeUnit.MINUTES);
+
+        // Set 60s rate limit
+        redisTemplate.opsForValue().set(rateLimitKey, "1", RATE_LIMIT_SECONDS, TimeUnit.SECONDS);
+
+        // Increment hourly request counter
+        if (requestCount == 0) {
+            redisTemplate.opsForValue().set(requestLimitKey, "1", 1, TimeUnit.HOURS);
+        } else {
+            redisTemplate.opsForValue().increment(requestLimitKey);
+        }
+
+        // Send email
+        emailService.sendOTPEmail(email, otp);
+
+        return "OTP sent successfully to " + email;
+    }
+
+    @Override
+    public String forgetPasswordOtpVerify(ForgetPasswordRequest request) {
+        String email = request.getEmail();
+        String inputOtp = String.valueOf(request.getOtp());
+
+        String otpKey = OTP_KEY_PREFIX + email;
+        String storedOtp = redisTemplate.opsForValue().get(otpKey);
+
+        if (storedOtp == null) {
+            throw new ValidationException("OTP expired or not found. Please request a new one.");
+        }
+
+        // Check verification attempts (separate from request limit)
+        String attemptKey = ATTEMPT_KEY_PREFIX + email;
+        Integer attempts = getAttemptCount(attemptKey);
+
+        if (attempts >= MAX_ATTEMPTS) {
+            redisTemplate.delete(otpKey);
+            redisTemplate.delete(attemptKey);
+            throw new ValidationException("Maximum verification attempts exceeded. Please request a new OTP.");
+        }
+
+        if (!storedOtp.equals(inputOtp)) {
+            // Increment verification attempt counter
+            Long newAttempts = redisTemplate.opsForValue().increment(attemptKey);
+            int remainingAttempts = MAX_ATTEMPTS - newAttempts.intValue();
+
+            throw new ValidationException(
+                    "Invalid OTP. " + remainingAttempts + " attempt(s) remaining."
+            );
+        }
+
+        String verifiedKey = VERIFIED_KEY_PREFIX + email;
+        redisTemplate.opsForValue().set(verifiedKey, "true", VERIFIED_TOKEN_EXPIRY_MINUTES, TimeUnit.MINUTES);
+
+        redisTemplate.delete(otpKey);
+        redisTemplate.delete(attemptKey);
+
+        return "OTP verified successfully";
+    }
+
+    @Override
+    @Transactional
+    public String updateLoginPassword(ForgetPasswordRequest request) {
+        String email = request.getEmail();
+        String newPassword = request.getNewPassword();
+
+        if (newPassword == null || newPassword.length() < 8) {
+            throw new ValidationException("Password must be at least 8 characters long");
+        }
+
+        String verifiedKey = VERIFIED_KEY_PREFIX + email;
+        String isVerified = redisTemplate.opsForValue().get(verifiedKey);
+
+        if (isVerified == null || !isVerified.equals("true")) {
+            throw new ValidationException("OTP verification required. Please verify OTP first.");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new NotFoundException("User not found with email: " + email));
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        // Clean up all keys including request limit (reset on successful password change)
+        redisTemplate.delete(verifiedKey);
+        redisTemplate.delete(OTP_KEY_PREFIX + email);
+        redisTemplate.delete(ATTEMPT_KEY_PREFIX + email);
+        redisTemplate.delete(REQUEST_LIMIT_KEY_PREFIX + email);
+
+        emailService.sendPasswordChangeConfirmation(email, user.getName());
+
+        return "Password updated successfully";
+    }
+
+    private String generateSecureOTP() {
+        SecureRandom random = new SecureRandom();
+        int otp = 100000 + random.nextInt(900000);
+        return String.valueOf(otp);
+    }
+
+    private Integer getAttemptCount(String attemptKey) {
+        String attemptsStr = redisTemplate.opsForValue().get(attemptKey);
+        return attemptsStr != null ? Integer.parseInt(attemptsStr) : 0;
     }
 
     private User createUserFromRequest(SignupRequest request) {
