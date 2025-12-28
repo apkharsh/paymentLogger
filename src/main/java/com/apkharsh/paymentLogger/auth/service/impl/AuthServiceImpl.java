@@ -42,10 +42,10 @@ public class AuthServiceImpl implements AuthService {
     private static final String ATTEMPT_KEY_PREFIX = "pwd_reset:attempts:";
     private static final String RATE_LIMIT_KEY_PREFIX = "pwd_reset:rate_limit:";
     private static final String REQUEST_LIMIT_KEY_PREFIX = "pwd_reset:requests:";
-    private static final int MAX_REQUESTS_PER_HOUR = 30;
-    private static final int OTP_EXPIRY_MINUTES = 10;
-    private static final int VERIFIED_TOKEN_EXPIRY_MINUTES = 10;
-    private static final int MAX_ATTEMPTS = 30;
+    private static final int MAX_REQUESTS_PER_HOUR = 10;
+    private static final int OTP_EXPIRY_MINUTES = 5;
+    private static final int VERIFIED_TOKEN_EXPIRY_MINUTES = 5;
+    private static final int MAX_ATTEMPTS = 5;
     private static final int RATE_LIMIT_SECONDS = 10;
 
     @Override
