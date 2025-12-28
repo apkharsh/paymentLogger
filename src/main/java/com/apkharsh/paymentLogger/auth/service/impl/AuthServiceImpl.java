@@ -24,6 +24,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static com.apkharsh.paymentLogger.security.util.JwtUtil.buildJWTClaims;
+import static com.apkharsh.paymentLogger.security.util.SecurityUtils.getCurrentUserId;
 
 @Service
 @Transactional
@@ -41,11 +42,11 @@ public class AuthServiceImpl implements AuthService {
     private static final String ATTEMPT_KEY_PREFIX = "pwd_reset:attempts:";
     private static final String RATE_LIMIT_KEY_PREFIX = "pwd_reset:rate_limit:";
     private static final String REQUEST_LIMIT_KEY_PREFIX = "pwd_reset:requests:";
-    private static final int MAX_REQUESTS_PER_HOUR = 3;
+    private static final int MAX_REQUESTS_PER_HOUR = 30;
     private static final int OTP_EXPIRY_MINUTES = 10;
     private static final int VERIFIED_TOKEN_EXPIRY_MINUTES = 10;
-    private static final int MAX_ATTEMPTS = 3;
-    private static final int RATE_LIMIT_SECONDS = 30;
+    private static final int MAX_ATTEMPTS = 30;
+    private static final int RATE_LIMIT_SECONDS = 10;
 
     @Override
     public SignupResponse signUp(SignupRequest request) {
@@ -164,7 +165,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public String forgetPasswordOtpSend(PasswordResetRequest request) {
+    public String forgetPasswordOtpSend(PasswordUpdateRequest request) {
         String email = request.getEmail();
 
         if (!userRepository.existsByEmail(email)) {
@@ -212,7 +213,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public String forgetPasswordOtpVerify(PasswordResetRequest request) {
+    public String forgetPasswordOtpVerify(PasswordUpdateRequest request) {
         String email = request.getEmail();
         String inputOtp = String.valueOf(request.getOtp());
 
@@ -254,7 +255,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public String updateLoginPassword(PasswordResetRequest request) {
+    public String updateLoginPassword(PasswordUpdateRequest request) {
         String email = request.getEmail();
         String newPassword = request.getNewPassword();
 
@@ -284,6 +285,25 @@ public class AuthServiceImpl implements AuthService {
         emailService.sendPasswordChangeConfirmation(email, user.getName());
 
         return "Password updated successfully";
+    }
+
+    @Override
+    public String updateLoginPasswordAuthenticated(PasswordUpdateRequest request) {
+        String currentUser = getCurrentUserId();
+        User user = userRepository.findById(currentUser)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        String currentEncodedPassword = user.getPassword();
+        String newRawPassword = request.getNewPassword();
+        passwordEncoder.matches(newRawPassword, currentEncodedPassword);
+
+        if (newRawPassword == null || newRawPassword.length() < 8) {
+            throw new ValidationException("Password must be at least 8 characters long");
+        } else {
+            user.setPassword(passwordEncoder.encode(newRawPassword));
+            userRepository.save(user);
+            emailService.sendPasswordChangeConfirmation(user.getEmail(), user.getName());
+            return "Password updated successfully";
+        }
     }
 
     private String generateSecureOTP() {

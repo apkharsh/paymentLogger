@@ -43,20 +43,25 @@ public class AuthController {
 
     @SneakyThrows
     @PostMapping("/password-reset/request")
-    public ResponseEntity<String> forgetPasswordOtpSend(@RequestBody PasswordResetRequest request) {
+    public ResponseEntity<String> forgetPasswordOtpSend(@RequestBody PasswordUpdateRequest request) {
         return new ResponseEntity<>(authService.forgetPasswordOtpSend(request), HttpStatus.OK);
     }
 
     @SneakyThrows
     @PostMapping("/password-reset/verify")
-    public ResponseEntity<String> forgetPasswordOtpVerify(@RequestBody PasswordResetRequest request) {
+    public ResponseEntity<String> forgetPasswordOtpVerify(@RequestBody PasswordUpdateRequest request) {
         return new ResponseEntity<>(authService.forgetPasswordOtpVerify(request), HttpStatus.OK);
     }
 
     @SneakyThrows
-    @GetMapping("/password-reset/confirm")
-    public ResponseEntity<String> updateLoginPassword(@RequestBody PasswordResetRequest request) {
+    @PostMapping("/password-reset/confirm")
+    public ResponseEntity<String> updateLoginPassword(@RequestBody PasswordUpdateRequest request) {
         return new ResponseEntity<>(authService.updateLoginPassword(request), HttpStatus.OK);
     }
 
+    @SneakyThrows
+    @PostMapping("/password-update")
+    public  ResponseEntity<String> updatePassword(@RequestBody PasswordUpdateRequest request) {
+        return new ResponseEntity<>(authService.updateLoginPasswordAuthenticated(request), HttpStatus.OK);
+    }
 }

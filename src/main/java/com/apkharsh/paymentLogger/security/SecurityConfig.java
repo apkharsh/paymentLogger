@@ -42,10 +42,25 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/auth/**").permitAll() // Auth endpoints
-                        .requestMatchers("/actuator/health/**").permitAll() // Health check
-                        .requestMatchers("/actuator/info").permitAll() // Info endpoint (optional)
-                        .requestMatchers("/actuator/**").authenticated() // Other actuator endpoints require auth
+                        // Public auth endpoints (NO authentication required)
+                        .requestMatchers("/auth/signup").permitAll()
+                        .requestMatchers("/auth/login").permitAll()
+                        .requestMatchers("/auth/refresh").permitAll()
+                        .requestMatchers("/auth/password-reset/**").permitAll() // Forgot password flow
+
+                        // Protected auth endpoints (REQUIRES authentication)
+                        .requestMatchers("/auth/logout").authenticated()
+                        .requestMatchers("/auth/change-password").authenticated() // Change password while logged in
+
+                        // Health and monitoring
+                        .requestMatchers("/actuator/health/**").permitAll()
+                        .requestMatchers("/actuator/info").permitAll()
+                        .requestMatchers("/actuator/**").authenticated()
+
+                        // Test endpoints
+                        .requestMatchers("/api/test/**").permitAll()
+
+                        // All other requests require authentication
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(
