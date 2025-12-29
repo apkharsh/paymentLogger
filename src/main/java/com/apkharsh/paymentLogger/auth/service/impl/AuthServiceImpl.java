@@ -68,6 +68,8 @@ public class AuthServiceImpl implements AuthService {
         User user = createUserFromRequest(request);
 
         userRepository.save(user);
+        redisTemplate.delete(otpVerifiedKey);
+        emailService.sendWelcomeEmail(user.getEmail(), user.getName());
         return buildSignupResponse(user);
     }
 
@@ -89,7 +91,7 @@ public class AuthServiceImpl implements AuthService {
         redisTemplate.opsForValue().set(rateLimitKey, otp, RATE_LIMIT_SECONDS, TimeUnit.SECONDS);
         redisTemplate.opsForValue().set(otpKey, otp, OTP_EXPIRY_MINUTES, TimeUnit.MINUTES);
 
-        emailService.sendOTPEmail(request.getEmail(), otp);
+        emailService.sendOTPEmailAsync(request.getEmail(), otp);
 
         return "OTP sent successfully to " + request.getEmail();
     }
@@ -259,7 +261,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // Send email
-        emailService.sendOTPEmail(email, otp);
+        emailService.sendOTPEmailAsync(email, otp);
 
         return "OTP sent successfully to " + email;
     }
@@ -334,7 +336,7 @@ public class AuthServiceImpl implements AuthService {
         redisTemplate.delete(ATTEMPT_KEY_PREFIX + email);
         redisTemplate.delete(REQUEST_LIMIT_KEY_PREFIX + email);
 
-        emailService.sendPasswordChangeConfirmation(email, user.getName());
+        emailService.sendPasswordChangeConfirmationAsync(email, user.getName());
 
         return "Password updated successfully";
     }
@@ -353,7 +355,7 @@ public class AuthServiceImpl implements AuthService {
         } else {
             user.setPassword(passwordEncoder.encode(newRawPassword));
             userRepository.save(user);
-            emailService.sendPasswordChangeConfirmation(user.getEmail(), user.getName());
+            emailService.sendPasswordChangeConfirmationAsync(user.getEmail(), user.getName());
             return "Password updated successfully";
         }
     }
