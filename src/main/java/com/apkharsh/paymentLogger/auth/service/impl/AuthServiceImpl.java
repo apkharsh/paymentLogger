@@ -37,6 +37,10 @@ public class AuthServiceImpl implements AuthService {
     private final StringRedisTemplate redisTemplate;
     private final EmailService emailService;
 
+    private static final String ACC_CREATE_OTP_KEY_PREFIX = "acc_create:otp:";
+    private static final String ACC_VERIFIED_KEY_PREFIX = "acc_create:verified:";
+    private static final String ACC_CREATE_RATE_LIMIT_KEY_PREFIX = "acc_create:rate_limit:";
+
     private static final String OTP_KEY_PREFIX = "pwd_reset:otp:";
     private static final String VERIFIED_KEY_PREFIX = "pwd_reset:verified:";
     private static final String ATTEMPT_KEY_PREFIX = "pwd_reset:attempts:";
@@ -51,6 +55,13 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public SignupResponse signUp(SignupRequest request) {
 
+        String otpVerifiedKey = ACC_VERIFIED_KEY_PREFIX + request.getEmail();
+        String isVerified = redisTemplate.opsForValue().get(otpVerifiedKey);
+
+        if (isVerified == null || !isVerified.equals("true")) {
+            throw new ValidationException("OTP verification required. Please verify OTP first.");
+        }
+
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new ValidationException("User Already exists with this Email id: " + request.getEmail());
         }
@@ -58,6 +69,47 @@ public class AuthServiceImpl implements AuthService {
 
         userRepository.save(user);
         return buildSignupResponse(user);
+    }
+
+    @Override
+    public String signUpSendOtp(SignupRequest request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new ValidationException("User Already exists with this Email id: " + request.getEmail());
+        }
+
+        String otp = generateSecureOTP();
+
+        String otpKey = ACC_CREATE_OTP_KEY_PREFIX + request.getEmail();
+        String rateLimitKey = ACC_CREATE_RATE_LIMIT_KEY_PREFIX + request.getEmail();
+
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(rateLimitKey))) {
+            throw new ValidationException("Please wait " + RATE_LIMIT_SECONDS + " seconds before requesting another OTP");
+        }
+
+        redisTemplate.opsForValue().set(otpKey, otp, RATE_LIMIT_SECONDS, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set(otpKey, otp, OTP_EXPIRY_MINUTES, TimeUnit.MINUTES);
+
+        emailService.sendOTPEmail(request.getEmail(), otp);
+
+        return "OTP sent successfully to " + request.getEmail();
+    }
+
+    @Override
+    public String signUpVerifyOtp(SignupRequest request) {
+        String inputOtp = String.valueOf(request.getOtp());
+        String otpKey = ACC_CREATE_OTP_KEY_PREFIX + request.getEmail();
+        String storedOtp = redisTemplate.opsForValue().get(otpKey);
+
+        if (storedOtp == null || !storedOtp.equals(inputOtp)) {
+            throw new ValidationException("Invalid or expired OTP. Please request a new one.");
+        }
+
+        String verifiedKey = ACC_VERIFIED_KEY_PREFIX + request.getEmail();
+        redisTemplate.opsForValue().set(verifiedKey, "true", VERIFIED_TOKEN_EXPIRY_MINUTES, TimeUnit.MINUTES);
+
+        redisTemplate.delete(otpKey);
+        redisTemplate.delete(storedOtp);
+        return "OTP verified successfully";
     }
 
     @Override

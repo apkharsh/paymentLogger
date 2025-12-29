@@ -7,6 +7,10 @@ public interface AuthService {
 
     SignupResponse signUp(SignupRequest request) throws Exception;
 
+    String signUpSendOtp(SignupRequest request) throws Exception;
+
+    String signUpVerifyOtp(SignupRequest request) throws Exception;
+
     TokenResponse login(LoginRequest request, HttpServletResponse response) throws Exception;
 
     TokenResponse refreshAccessToken(String refreshToken, HttpServletResponse response) throws Exception;

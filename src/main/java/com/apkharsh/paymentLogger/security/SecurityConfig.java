@@ -45,12 +45,14 @@ public class SecurityConfig {
                         // Public auth endpoints (NO authentication required)
                         .requestMatchers("/auth/signup").permitAll()
                         .requestMatchers("/auth/login").permitAll()
+                        .requestMatchers("/auth/signup/**").permitAll()
+                        .requestMatchers("/auth/login/**").permitAll()
                         .requestMatchers("/auth/refresh").permitAll()
-                        .requestMatchers("/auth/password-reset/**").permitAll() // Forgot password flow
+                        .requestMatchers("/auth/password-reset/**").permitAll()
 
                         // Protected auth endpoints (REQUIRES authentication)
                         .requestMatchers("/auth/logout").authenticated()
-                        .requestMatchers("/auth/change-password").authenticated() // Change password while logged in
+                        .requestMatchers("/auth/change-password").authenticated()
 
                         // Health and monitoring
                         .requestMatchers("/actuator/health/**").permitAll()

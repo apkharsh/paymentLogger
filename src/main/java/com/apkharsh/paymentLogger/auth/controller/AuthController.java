@@ -23,6 +23,18 @@ public class AuthController {
     }
 
     @SneakyThrows
+    @PostMapping(value = "/signup/send-otp")
+    public ResponseEntity<String> sendOtp(@RequestBody SignupRequest request) {
+        return new ResponseEntity<>(authService.signUpSendOtp(request), HttpStatus.OK);
+    }
+
+    @SneakyThrows
+    @PostMapping(value = "/signup/verify-otp")
+    public ResponseEntity<String> signUpVerifyOtp(@RequestBody SignupRequest request) {
+        return new ResponseEntity<>(authService.signUpVerifyOtp(request), HttpStatus.OK);
+    }
+
+    @SneakyThrows
     @PostMapping(value = "/login")
     public ResponseEntity<TokenResponse> login(@RequestBody LoginRequest request, HttpServletResponse response) {
         return new ResponseEntity<>(authService.login(request, response), HttpStatus.OK);
