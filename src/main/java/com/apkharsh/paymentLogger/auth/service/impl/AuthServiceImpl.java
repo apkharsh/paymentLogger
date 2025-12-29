@@ -86,7 +86,7 @@ public class AuthServiceImpl implements AuthService {
             throw new ValidationException("Please wait " + RATE_LIMIT_SECONDS + " seconds before requesting another OTP");
         }
 
-        redisTemplate.opsForValue().set(otpKey, otp, RATE_LIMIT_SECONDS, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set(rateLimitKey, otp, RATE_LIMIT_SECONDS, TimeUnit.SECONDS);
         redisTemplate.opsForValue().set(otpKey, otp, OTP_EXPIRY_MINUTES, TimeUnit.MINUTES);
 
         emailService.sendOTPEmail(request.getEmail(), otp);
