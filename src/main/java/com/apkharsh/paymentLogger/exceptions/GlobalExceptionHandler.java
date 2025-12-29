@@ -1,5 +1,6 @@
 package com.apkharsh.paymentLogger.exceptions;
 
+import com.mongodb.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -15,8 +16,32 @@ import java.util.List;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    // Handle MongoDB duplicate key errors
+    @ExceptionHandler(DuplicateKeyException.class)
+    public ResponseEntity<ApiErrorResponse> handleDuplicateKey(
+            DuplicateKeyException ex,
+            WebRequest request) {
+
+
+        // Extract meaningful message
+        String message = "Resource already exists";
+        if (ex.getMessage() != null && ex.getMessage().contains("email")) {
+            message = "Email is already registered";
+        }
+
+        ApiErrorResponse error = new ApiErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                message,
+                LocalDateTime.now(),
+                request.getDescription(false).replace("uri=", ""),
+                null
+        );
+
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
     @ExceptionHandler(ValidationException.class)
-    public ResponseEntity<ApiErrorResponse> handleUserNotFound(
+    public ResponseEntity<ApiErrorResponse> handleValidationException(
             ValidationException ex,
             WebRequest request) {
         ApiErrorResponse error = new ApiErrorResponse(
@@ -64,6 +89,7 @@ public class GlobalExceptionHandler {
         );
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
+
 
     // Fallback handler for unexpected exceptions
     @ExceptionHandler(Exception.class)
